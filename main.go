@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -28,6 +30,34 @@ func registerRouter(lc fx.Lifecycle, e *gin.Engine) {
 			req.URL.Path = c.Param("path")
 		}
 		proxy.ServeHTTP(c.Writer, c.Request)
+	})
+
+	e.Any("/async/:ns/:ksvc/*path", func(c *gin.Context) {
+		ksvcURL, _ := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", c.Param("ksvc"), c.Param("ns")))
+		ksvcURL.Path = c.Param("path")
+
+		b, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		req, err := http.NewRequest(c.Request.Method, ksvcURL.String(), bytes.NewReader(b))
+		if err != nil {
+			panic(err)
+		}
+		req.Host = ksvcURL.Host
+		req.Header = c.Request.Header
+
+		go func() {
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				log.Printf("Do async request error: %s", err)
+				return
+			}
+			log.Printf("Do async request status: %d", res.StatusCode)
+		}()
+
+		c.Status(http.StatusAccepted)
 	})
 
 	srv := &http.Server{
