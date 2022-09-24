@@ -1,5 +1,5 @@
 # kngw
-Knative function gateway
+Knative gateway
 
 ## How to build?
 ```bash
