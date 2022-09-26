@@ -11,20 +11,36 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func RegisterHandler(rc *resty.Client, e *gin.Engine) {
-	h := &handler{rc}
+func RegisterHandler(rc *resty.Client, mp metric.MeterProvider, e *gin.Engine) error {
+	meter := mp.Meter("github.com/wei840222/kngw.handler")
+	syncInvokeCounter, err := meter.SyncInt64().Counter("sync_invoke")
+	if err != nil {
+		return err
+	}
+	asyncInvokeCounter, err := meter.SyncInt64().Counter("async_invoke")
+	if err != nil {
+		return err
+	}
+
+	h := &handler{rc, syncInvokeCounter, asyncInvokeCounter}
 	e.Any("/:ns/:ksvc/*path", h.syncInvoke)
 	e.Any("/async/:ns/:ksvc/*path", h.asyncInvoke)
+	return nil
 }
 
 type handler struct {
-	rc *resty.Client
+	rc                 *resty.Client
+	syncInvokeCounter  syncint64.Counter
+	asyncInvokeCounter syncint64.Counter
 }
 
 func (h handler) syncInvoke(c *gin.Context) {
+	h.syncInvokeCounter.Add(c, 1)
 	res, err := h.rc.R().
 		SetContext(httptrace.WithClientTrace(c, otelhttptrace.NewClientTrace(c))).
 		SetHeaderMultiValues(c.Request.Header).
@@ -37,6 +53,7 @@ func (h handler) syncInvoke(c *gin.Context) {
 }
 
 func (h handler) asyncInvoke(c *gin.Context) {
+	h.asyncInvokeCounter.Add(c, 1)
 	b, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		panic(err)

@@ -6,6 +6,7 @@ import (
 
 func main() {
 	fx.New(
+		fx.Provide(InitMeterProvider),
 		fx.Provide(InitTracerProvider),
 		fx.Provide(InitResty),
 		fx.Provide(InitGinEngine),
