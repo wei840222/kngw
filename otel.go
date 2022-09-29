@@ -6,6 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	propagators_b3 "go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -51,10 +52,7 @@ func InitTracerProvider(lc fx.Lifecycle) (trace.TracerProvider, error) {
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			exporter, err := otlptrace.New(ctx, otlptracegrpc.NewClient(
-				otlptracegrpc.WithInsecure(),
-				otlptracegrpc.WithEndpoint("opentelemetry-collector.observability.svc.cluster.local:4317"),
-			))
+			exporter, err := otlptrace.New(ctx, otlptracegrpc.NewClient(otlptracegrpc.WithInsecure()))
 			if err != nil {
 				return err
 			}
@@ -70,7 +68,7 @@ func InitTracerProvider(lc fx.Lifecycle) (trace.TracerProvider, error) {
 			)
 
 			otel.SetTracerProvider(tp)
-			otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+			otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, propagators_b3.New()))
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
