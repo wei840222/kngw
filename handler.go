@@ -42,7 +42,7 @@ type handler struct {
 func (h handler) syncInvoke(c *gin.Context) {
 	h.syncInvokeCounter.Add(c, 1)
 	res, err := h.rc.R().
-		SetContext(httptrace.WithClientTrace(c.Request.Context(), otelhttptrace.NewClientTrace(c.Request.Context()))).
+		SetContext(httptrace.WithClientTrace(c, otelhttptrace.NewClientTrace(c))).
 		SetHeaderMultiValues(c.Request.Header).
 		SetBody(c.Request.Body).
 		Execute(c.Request.Method, fmt.Sprintf("http://%s.%s.svc.cluster.local%s", c.Param("ksvc"), c.Param("ns"), c.Param("path")))
@@ -72,7 +72,7 @@ func (h handler) asyncInvoke(c *gin.Context) {
 			return
 		}
 		log.Printf("Do async request: %s", res.Status())
-	}(trace.ContextWithSpan(context.Background(), trace.SpanFromContext(cc.Request.Context())))
+	}(trace.ContextWithSpan(context.Background(), trace.SpanFromContext(cc)))
 
 	c.Status(http.StatusAccepted)
 }

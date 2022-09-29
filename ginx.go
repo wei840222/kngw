@@ -13,6 +13,7 @@ import (
 
 func InitGinEngine(lc fx.Lifecycle, mp metric.MeterProvider, tp trace.TracerProvider) *gin.Engine {
 	e := gin.Default()
+	e.ContextWithFallback = true
 
 	e.Use(otelgin.Middleware("gin", otelgin.WithTracerProvider(tp)))
 	e.GET("/", func(c *gin.Context) {

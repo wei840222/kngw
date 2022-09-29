@@ -52,7 +52,7 @@ func InitTracerProvider(lc fx.Lifecycle) (trace.TracerProvider, error) {
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			exporter, err := otlptrace.New(ctx, otlptracegrpc.NewClient(otlptracegrpc.WithInsecure()))
+			exporter, err := otlptrace.New(ctx, otlptracegrpc.NewClient())
 			if err != nil {
 				return err
 			}
