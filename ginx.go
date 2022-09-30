@@ -26,7 +26,7 @@ var ginOtelLogFormatter = func(param gin.LogFormatterParams) string {
 		param.Latency = param.Latency.Truncate(time.Second)
 	}
 
-	return fmt.Sprintf("[GIN] %v |%s %3d %s| %13v | %15s |%s %-7s %s %#v traceID: %s\n%s",
+	return fmt.Sprintf("[GIN] %v |%s %3d %s| %13v | %15s |%s %-7s %s %#v traceID=%s\n%s",
 		param.TimeStamp.Format("2006/01/02 - 15:04:05"),
 		statusColor, param.StatusCode, resetColor,
 		param.Latency,
@@ -39,6 +39,7 @@ var ginOtelLogFormatter = func(param gin.LogFormatterParams) string {
 }
 
 func InitGinEngine(lc fx.Lifecycle, tp trace.TracerProvider, otelpromExporter *otelprom.Exporter) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	e := gin.New()
 	e.ContextWithFallback = true
 	p := ginprom.NewPrometheus("gin").SetEnableExemplar(true).SetOtelPromExporter(otelpromExporter)

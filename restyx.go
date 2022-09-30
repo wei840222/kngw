@@ -11,7 +11,5 @@ func InitResty() *resty.Client {
 	return resty.
 		NewWithClient(&http.Client{
 			Transport: otelhttp.NewTransport(http.DefaultTransport),
-		}).
-		SetDebug(true).
-		SetDebugBodyLimit(1024)
+		})
 }
