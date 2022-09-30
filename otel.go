@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"net/http"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	propagators_b3 "go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -21,30 +18,17 @@ import (
 	"go.uber.org/fx"
 )
 
-func InitMeterProvider(lc fx.Lifecycle) metric.MeterProvider {
+func InitMeterProvider(lc fx.Lifecycle) (metric.MeterProvider, *otelprom.Exporter) {
 	exporter := otelprom.New()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exporter))
 
 	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			prometheus.DefaultRegisterer.Register(exporter.Collector)
-			http.Handle("/metrics", promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{
-				EnableOpenMetrics: true,
-			}))
-
-			go func() {
-				if err := http.ListenAndServe(":2222", nil); err != nil && err != http.ErrServerClosed {
-					panic(err)
-				}
-			}()
-			return nil
-		},
 		OnStop: func(ctx context.Context) error {
 			return provider.Shutdown(ctx)
 		},
 	})
 
-	return provider
+	return provider, &exporter
 }
 
 func InitTracerProvider(lc fx.Lifecycle) (trace.TracerProvider, error) {
