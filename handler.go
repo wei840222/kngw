@@ -6,9 +6,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptrace"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.opentelemetry.io/otel/trace"
@@ -40,7 +42,7 @@ type handler struct {
 func (h handler) syncInvoke(c *gin.Context) {
 	h.syncInvokeCounter.Add(c, 1)
 	res, err := h.rc.R().
-		SetContext(c).
+		SetContext(httptrace.WithClientTrace(c, otelhttptrace.NewClientTrace(c))).
 		SetHeaderMultiValues(c.Request.Header).
 		SetBody(c.Request.Body).
 		Execute(c.Request.Method, fmt.Sprintf("http://%s.%s.svc.cluster.local%s", c.Param("ksvc"), c.Param("ns"), c.Param("path")))
@@ -61,7 +63,7 @@ func (h handler) asyncInvoke(c *gin.Context) {
 
 	go func(ctx context.Context) {
 		res, err := h.rc.R().
-			SetContext(ctx).
+			SetContext(httptrace.WithClientTrace(ctx, otelhttptrace.NewClientTrace(ctx))).
 			SetHeaderMultiValues(cc.Request.Header).
 			SetBody(string(b)).
 			Execute(cc.Request.Method, fmt.Sprintf("http://%s.%s.svc.cluster.local%s", cc.Param("ksvc"), cc.Param("ns"), cc.Param("path")))
