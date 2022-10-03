@@ -25,8 +25,6 @@ spec:
     description: This workspace contains the cloned repo files, so they can be read by the next task.
   - name: registry-credentials
     description: Container registry username and password.
-  - name: application-env-credentials
-    description: Environment variable for application runtime.
   tasks:
   - name: fetch-source
     taskRef:
@@ -64,38 +62,9 @@ spec:
       value: gcr.io/buildpacks/builder:v1
     - name: APP_IMAGE
       value: $(params.image-registry-url):$(tasks.image-tag.results.tag)
-  - name: kn-apply-with-application-env
-    runAfter:
-    - build-push
-    when:
-    - input: $(workspaces.application-env-credentials.bound)
-      operator: in
-      values:
-      - "true"
-    taskRef:
-      name: kn
-      kind: ClusterTask
-    workspaces:
-    - name: credentials
-      workspace: application-env-credentials
-    params:
-    - name: ARGS
-      value:
-      - ksvc
-      - apply
-      - --namespace=$(params.application-namespace)
-      - --image=$(params.image-registry-url):$(tasks.image-tag.results.tag)
-      - --env-file=$(workspaces.credentials.path)/env.txt
-      - --annotation=instrumentation.opentelemetry.io/inject-sdk=true
-      - $(params.application-name)
   - name: kn-apply
     runAfter:
     - build-push
-    when:
-    - input: $(workspaces.application-env-credentials.bound)
-      operator: in
-      values:
-      - "false"
     taskRef:
       name: kn
       kind: ClusterTask
