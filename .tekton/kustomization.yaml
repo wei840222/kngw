@@ -1,6 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: knative-serving
+namespace: tekton-runs
+namePrefix: kngw-
 configurations:
 - ./configurations/tekton-namereferences.yaml
 resources:
