@@ -36,7 +36,7 @@ spec:
       - apiVersion: tekton.dev/v1beta1
         kind: PipelineRun
         metadata:
-          generateName: source-code-to-url-
+          generateName: kngw-
         spec:
           serviceAccountName: source-code-to-url
           pipelineRef:
