@@ -1,78 +1,61 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
 	"net/http/httptrace"
+	"path"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func RegisterHandler(rc *resty.Client, mp metric.MeterProvider, e *gin.Engine) error {
-	meter := mp.Meter("github.com/wei840222/kngw.handler")
 	syncInvokeCounter, err := meter.SyncInt64().Counter("sync_invoke")
 	if err != nil {
 		return err
 	}
-	asyncInvokeCounter, err := meter.SyncInt64().Counter("async_invoke")
-	if err != nil {
-		return err
-	}
 
-	h := &handler{rc, syncInvokeCounter, asyncInvokeCounter}
-	e.Any("/:ns/:ksvc/*path", h.syncInvoke)
-	e.Any("/async/:ns/:ksvc/*path", h.asyncInvoke)
+	h := &handler{rc, syncInvokeCounter}
+	e.Any("/serving/:ns/:ksvc/*path", h.serving)
+	e.POST("/eventing/:ns/:broker", h.eventing)
 	return nil
 }
 
 type handler struct {
-	rc                 *resty.Client
-	syncInvokeCounter  syncint64.Counter
-	asyncInvokeCounter syncint64.Counter
+	rc                *resty.Client
+	syncInvokeCounter syncint64.Counter
 }
 
-func (h handler) syncInvoke(c *gin.Context) {
+func (h handler) joinURL(base string, paths ...string) string {
+	p := path.Join(paths...)
+	return fmt.Sprintf("%s/%s", strings.TrimRight(base, "/"), strings.TrimLeft(p, "/"))
+}
+
+func (h handler) serving(c *gin.Context) {
 	h.syncInvokeCounter.Add(c, 1)
 	res, err := h.rc.R().
 		SetContext(httptrace.WithClientTrace(c, otelhttptrace.NewClientTrace(c))).
 		SetHeaderMultiValues(c.Request.Header).
 		SetBody(c.Request.Body).
-		Execute(c.Request.Method, fmt.Sprintf("http://%s.%s.svc.cluster.local%s", c.Param("ksvc"), c.Param("ns"), c.Param("path")))
+		Execute(c.Request.Method, h.joinURL(fmt.Sprintf("http://%s.%s.svc.cluster.local", c.Param("ksvc"), c.Param("ns")), c.Param("path")))
 	if err != nil {
 		panic(err)
 	}
 	c.Data(res.StatusCode(), res.Header().Get("Content-Type"), res.Body())
 }
 
-func (h handler) asyncInvoke(c *gin.Context) {
-	h.asyncInvokeCounter.Add(c, 1)
-	b, err := io.ReadAll(c.Request.Body)
+func (h handler) eventing(c *gin.Context) {
+	res, err := h.rc.R().
+		SetContext(httptrace.WithClientTrace(c, otelhttptrace.NewClientTrace(c))).
+		SetHeaderMultiValues(c.Request.Header).
+		SetBody(c.Request.Body).
+		Post(h.joinURL("http://broker-ingress.knative-eventing.svc.cluster.local", c.Param("ns"), c.Param("broker")))
 	if err != nil {
 		panic(err)
 	}
-
-	cc := c.Copy()
-
-	go func(ctx context.Context) {
-		res, err := h.rc.R().
-			SetContext(httptrace.WithClientTrace(ctx, otelhttptrace.NewClientTrace(ctx))).
-			SetHeaderMultiValues(cc.Request.Header).
-			SetBody(string(b)).
-			Execute(cc.Request.Method, fmt.Sprintf("http://%s.%s.svc.cluster.local%s", cc.Param("ksvc"), cc.Param("ns"), cc.Param("path")))
-		if err != nil {
-			log.Printf("Do async request error: %s", err)
-			return
-		}
-		log.Printf("Do async request: %s", res.Status())
-	}(trace.ContextWithSpan(context.Background(), trace.SpanFromContext(cc)))
-
-	c.Status(http.StatusAccepted)
+	c.Data(res.StatusCode(), res.Header().Get("Content-Type"), res.Body())
 }

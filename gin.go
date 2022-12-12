@@ -42,8 +42,13 @@ func InitGinEngine(lc fx.Lifecycle, tp trace.TracerProvider, otelpromExporter *o
 	gin.SetMode(gin.ReleaseMode)
 	e := gin.New()
 	e.ContextWithFallback = true
-	p := ginprom.NewPrometheus("gin").SetEnableExemplar(true).SetOtelPromExporter(otelpromExporter)
-	e.Use(otelgin.Middleware("gin", otelgin.WithTracerProvider(tp)), p.HandlerFunc(), gin.LoggerWithFormatter(ginOtelLogFormatter), gin.Recovery())
+	p := ginprom.NewPrometheus("gin").SetEnableExemplar(true)
+	e.Use(
+		otelgin.Middleware("gin"),
+		ginprom.NewPrometheus("gin").SetEnableExemplar(true).SetListenAddress(":2222").SetMetricsPath(nil).HandlerFunc(),
+		gin.LoggerWithFormatter(ginOtelLogFormatter),
+		gin.Recovery(),
+	)
 
 	e.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
