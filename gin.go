@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	ginprom "github.com/wei840222/gin-prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 )
@@ -38,7 +38,7 @@ var ginOtelLogFormatter = func(param gin.LogFormatterParams) string {
 	)
 }
 
-func InitGinEngine(lc fx.Lifecycle, tp trace.TracerProvider, otelpromExporter *otelprom.Exporter) *gin.Engine {
+func InitGinEngine(lc fx.Lifecycle, _ trace.TracerProvider, _ metric.MeterProvider) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	e := gin.New()
 	e.ContextWithFallback = true

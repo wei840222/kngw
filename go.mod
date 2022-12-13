@@ -3,8 +3,10 @@ module github.com/wei840222/kngw
 go 1.19
 
 require (
+	github.com/cloudevents/sdk-go/v2 v2.12.0
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/google/uuid v1.1.2
 	github.com/wei840222/gin-prometheus v0.0.0-20221209161649-ae43f67963a6
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.37.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.37.0
